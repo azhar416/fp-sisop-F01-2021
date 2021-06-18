@@ -38,37 +38,44 @@ char* use(char str[]);
 char* grant_permission(char str[]);
 char* create_database(char str[]);
 char* drop_database(char str[]);
+char* create_table(char str[]);
+
 
 // common use
 void create_file(char filePath[], char str[], char mode[]);
+int remove_directory(const char* path);
  
 int main() 
 {
-    // pid_t pid, sid;
-    // pid = fork();
+    pid_t pid, sid;
+    pid = fork();
 
-    // if (pid < 0) {
-    //         exit(EXIT_FAILURE);
-    // }
+    if (pid < 0) {
+            exit(EXIT_FAILURE);
+    }
     
-    // if (pid > 0) {
-    //         exit(EXIT_SUCCESS);
-    // }
+    if (pid > 0) {
+            exit(EXIT_SUCCESS);
+    }
     
-    // umask(0);
+    umask(0);
 
-    // sid = setsid();
-    // if (sid < 0) {
-    //         exit(EXIT_FAILURE);
-    // }
+    sid = setsid();
+    if (sid < 0) {
+            exit(EXIT_FAILURE);
+    }
 
-    // if ((chdir("/")) < 0) {
-    //     exit(EXIT_FAILURE);
-    // }
+    if ((chdir("/")) < 0) {
+        exit(EXIT_FAILURE);
+    }
     
-    // close(STDIN_FILENO);
-    // close(STDOUT_FILENO);
-    // close(STDERR_FILENO);
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+
+	open("/dev/null", O_RDONLY);
+	open("/dev/null", O_RDWR);
+	open("/dev/null", O_RDWR);
 
     char buffer[1024] = {0}, msg[1024] = {};
         
@@ -157,6 +164,10 @@ int main()
 		{
 			strcpy(msg, drop_database(buffer));
 		}
+		else if (!strncmp(buffer, "CREATE TABLE", 12))
+		{
+			strcpy(msg, create_table(buffer));
+		}
         else
         {
             strcpy(msg, "QUERY NOT AVAILABLE!");
@@ -166,6 +177,71 @@ int main()
     }
 
     return 0;
+}
+
+char* create_table(char str[])
+{
+	char* ptr;
+	char msg[1024];
+
+	// nama table (file)
+	char namatable[1024];
+	
+	// temp
+	int i = 0;
+	char cmd[1024];
+	strcpy(cmd, str);
+	char* cmdptr = cmd;
+	char* token;
+
+	// CREATE TABLE [nama_table] ([nama_kolom] [tipe_data], ... );
+	for (i = 0; token = strtok_r(cmdptr, " ", &cmdptr); i++)
+	{
+		if (i == 2)
+		{
+			strcpy(namatable, token);
+		}
+	}
+
+	strcpy(cmd, strcpy);
+	cmdptr = strchr(cmd, '(') + 1;
+
+	// cmd = [nama kolom] [tipe data], ... 
+	strncpy(cmd, cmdptr, strlen(cmdptr) - 2);
+	char temp[1024];
+	strcpy(temp, cmd);
+	char table_path[1024];
+	sprintf(table_path, "%s/%s.tsv", currentDB, namatable);
+
+	FILE* file = fopen(table_path, "w");
+	char* token2;
+	int j;
+	
+	char kolomnama[1024], kolomdata[1024];
+	for (i = 0; token = strtok_r(cmdptr, ",", &cmdptr); i++)
+	{
+		char kolom[1024];
+		char* kolomptr;
+		strcpy(kolom, token);
+		for (j = 0; token2 = strtok_r(kolomptr, " ", &kolomptr); j++)
+		{
+			if (i == 0)
+			{
+				strcpy(kolomnama, token2);
+			}
+			if (i == 1)
+			{
+				strcpy(kolomdata, token2);
+			}
+			fprintf(file, "%s:%s", kolomnama, kolomdata);
+		}
+		fprintf(file, "\t");
+	}
+	fclose(file);
+
+	strcpy(msg, "SUCCES CREATE TABLE");
+	ptr = msg;
+	return ptr;
 }
 
 int remove_directory(const char *path) {

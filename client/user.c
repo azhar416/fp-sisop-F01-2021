@@ -11,15 +11,6 @@ char namaUser[1024];
   
 int main(int argc, char const *argv[]) 
 {
-    // if (argc != 5 || argc != 1) {
-    //     printf("Try Again!%d\n", argc);
-    //     return 0;
-    // }
-    // else if (strcmp(argv[1], "-u") != 0 || strcmp(argv[3], "-p") != 0) {
-    //     printf("Wrong argument(s), please try again\n");
-    //     return 0;
-    // }
-
     struct sockaddr_in address;
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
