@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <dirent.h>
 #define PORT 8080
 
 int server_fd, new_socket, valread;
@@ -36,6 +37,7 @@ char* create_user(char str[]);
 char* use(char str[]);
 char* grant_permission(char str[]);
 char* create_database(char str[]);
+char* drop_database(char str[]);
 
 // common use
 void create_file(char filePath[], char str[], char mode[]);
@@ -149,7 +151,11 @@ int main()
         }
 		else if (!strncmp(buffer, "CREATE DATABASE", 15))
 		{
-
+			strcpy(msg, create_database(buffer));
+		}
+		else if (!strncmp(buffer, "DROP DATABASE", 13))
+		{
+			strcpy(msg, drop_database(buffer));
 		}
         else
         {
@@ -160,6 +166,177 @@ int main()
     }
 
     return 0;
+}
+
+int remove_directory(const char *path) {
+	DIR* d = opendir(path);
+	size_t path_len = strlen(path);
+	int r = -1;
+	if (!d)
+		return 1;
+   	if (d) {
+		struct dirent *p;
+
+		r = 0;
+		while (!r && (p=readdir(d))) {
+          	int r2 = -1;
+			char *buf;
+			size_t len;
+
+			/* Skip the names "." and ".." as we don't want to recurse on them. */
+			if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
+				continue;
+
+			len = path_len + strlen(p->d_name) + 2; 
+			buf = malloc(len);
+
+			if (buf) {
+				struct stat statbuf;
+
+				snprintf(buf, len, "%s/%s", path, p->d_name);
+				if (!stat(buf, &statbuf)) {
+					if (S_ISDIR(statbuf.st_mode))
+					r2 = remove_directory(buf);
+					else
+					r2 = unlink(buf);
+				}
+				free(buf);
+			}
+			r = r2;
+		}
+		closedir(d);
+	}
+
+	if (!r)
+		r = rmdir(path);
+
+	return r;
+}
+
+char* drop_database(char str[])
+{
+	char* ptr;
+	char msg[1024];
+
+	// namadb
+	char namadb[1024];
+	bzero(namadb, 1024);
+
+	// parse
+	int i;
+	char parse[1024];
+	strcpy(parse, str);
+	char* parseptr = parse;
+	char* token;
+
+	// DROP DATABASE [nama_database];
+	for (i = 0; token = strtok_r(parseptr, " ", &parseptr); i++)
+	{
+		if (i == 2)
+		{
+			strncpy(namadb, token, strlen(token) - 1);
+			// printf("aasadssadads\n");
+		}
+	}
+	// printf("db : %s\n", namadb);
+
+	char databasepath[1024];
+	sprintf(databasepath, "%s/%s", folderDatabase, namadb);
+	char* pathdbptr = databasepath;
+
+	if (!opendir(databasepath))
+	{
+		strcpy(msg, "DATABASE NOT EXIST!");
+		ptr = msg;
+		return ptr;
+	}
+
+	// printf("%s\n", databasepath);
+	char permissionfile[1024];
+	strcpy(permissionfile, databasepath);
+	strcat(permissionfile, "/granted_user.txt");
+
+	printf("%s\n", databasepath);
+
+	FILE* file = fopen(permissionfile, "r");
+	char line [1024];
+	bzero(line, 1024);
+	int perm = 0;
+
+	// printf("%s\n", login.id);
+	while (fgets(line, 1024, file))
+	{
+		if (!strncmp(line, login.id, strlen(login.id)))
+		{
+			perm = 1;
+			break;
+		}
+	}
+
+	// printf("%d\n", perm);
+
+	if (perm)
+	{
+		int rm = remove_directory(databasepath);
+		strcpy(msg, "DROP DATABASE SUCCESS!");
+		ptr = msg;
+		return ptr;
+	}
+
+	strcpy(msg, "USER HAS NO PERMISSION!");
+	ptr = msg;
+	return ptr;
+}
+
+char* create_database(char str[])
+{
+	char* ptr;
+	char msg[1024];
+
+	// namadb
+	char namadb[1024];
+	bzero(namadb, 1024);
+
+	// parse
+	int i;
+	char parse[1024];
+	strcpy(parse, str);
+	char* parseptr = parse;
+	char* token;
+
+	// CREATE DATABASE [nama_database];
+	for (i = 0; token = strtok_r(parseptr, " ", &parseptr); i++)
+	{
+		if (i == 2)
+		{
+			strncpy(namadb, token, strlen(token) - 1);
+			// printf("aasadssadads\n");
+		}
+	}
+	// printf("db : %s\n", namadb);
+
+	char databasepath[1024];
+	sprintf(databasepath, "%s/%s", folderDatabase, namadb);
+	char* pathdbptr = databasepath;
+
+	// printf("%s\n", databasepath);
+
+	if (mkdir(pathdbptr, 0777) != 0)
+	{
+		strcpy(msg, "CANNOT CREATE DATABASE!");
+		ptr = msg;
+		return ptr;
+	}
+
+	char permissionfile[1024];
+	strcpy(permissionfile, databasepath);
+	strcat(permissionfile, "/granted_user.txt");
+
+	create_file(permissionfile, login.id, "a");
+
+	strcpy(msg, "DATABASE SUCCESSFULLY CREATED!");
+	ptr = msg;
+	return ptr;
 }
 
 char* use(char str[])
